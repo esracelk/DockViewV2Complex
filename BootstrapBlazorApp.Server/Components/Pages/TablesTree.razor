@@ -1,0 +1,93 @@
+﻿@page "/tree"
+
+<h3>TablesTree</h3>
+@inherits BootstrapComponentBase
+@inject IStringLocalizer<TablesTree> Localizer
+@inject IStringLocalizer<Foo> LocalizerFoo
+@inject ICacheManager CacheManager //Tree genislediginde verileri cachlemek icin kullanılır
+
+
+
+<Table TItem="TreeFoo" IsBordered="true" IsStriped="true"
+	   Items="@TreeItems" IsTree="true" TreeNodeConverter="@TreeNodeConverter" OnTreeExpand="@OnTreeExpand" IsFixedHeader="true">
+	<TableColumns>
+		<TableColumn @bind-Field="@context.Name" Width="140" />
+		<TableColumn @bind-Field="@context.DateTime" Width="180" />
+		<TableColumn @bind-Field="@context.Address" Width="260" TextEllipsis="true" ShowTips="true" />
+		<TableColumn @bind-Field="@context.Count" Width="80" />
+	</TableColumns>
+</Table>
+
+@code {
+	[NotNull]
+	private List<TreeFoo>? TreeItems { get; set; }
+
+
+	protected override void OnInitialized()
+	{
+		base.OnInitialized();
+		TreeItems = TreeFoo.GenerateFoos(LocalizerFoo, 5);
+		TreeItems.AddRange(TreeFoo.GenerateFoos(LocalizerFoo, 5, 1, 100));
+		TreeItems.AddRange(TreeFoo.GenerateFoos(LocalizerFoo, 10, 101, 1010));
+	}
+
+
+	//TreeFoo listesi agac yapısına cevriliyor
+	private static Task<IEnumerable<TableTreeNode<TreeFoo>>> TreeNodeConverter(IEnumerable<TreeFoo> items)
+	{
+		var ret = BuildTreeNodes(items, 0);
+		return Task.FromResult(ret);
+	}
+
+	private static IEnumerable<TableTreeNode<TreeFoo>> BuildTreeNodes(IEnumerable<TreeFoo> items, int parentId)
+	{
+		var result = new List<TableTreeNode<TreeFoo>>();
+
+		//paretID ye sahip tüm cocuklar
+		var children = items.Where(i => i.ParentId == parentId);
+
+		//her cocuk icin treenode olustur
+		foreach (var (foo, index) in children.Select((v, i) => (v, i)))
+		{
+			var node = new TableTreeNode<TreeFoo>(foo)
+			{
+
+				HasChildren = index % 2 == 0,
+				IsExpand = items.Any(i => i.ParentId == foo.Id),
+				Items = BuildTreeNodes(items.Where(i => i.ParentId == foo.Id), foo.Id)
+			};
+
+			result.Add(node);
+		}
+
+		return result;
+	}
+
+	private Task<IEnumerable<TableTreeNode<TreeFoo>>> OnTreeExpand(TreeFoo foo) => CacheManager.GetOrCreateAsync($"TablesTreeIcon-{foo.Id}", async entry =>
+	{
+		
+		await Task.Delay(1000);
+
+		//cachemanager aynı veriyi tekrar tekrar üretmek yerine 10 dakika saklar
+		entry.SlidingExpiration = TimeSpan.FromMinutes(10);
+
+		//acılan node icin yeni cocuklar olusturuyor
+		return TreeFoo.GenerateFoos(LocalizerFoo, 4, foo.Id, foo.Id * 100).Select(i => new TableTreeNode<TreeFoo>(i));
+	});
+
+	private class TreeFoo : Foo
+	{
+		//parent id ile agac yapısı icin bir hiyerarsi olusturuyor
+		public int ParentId { get; set; }
+
+		public static List<TreeFoo> GenerateFoos(IStringLocalizer<Foo> localizer, int count = 80, int parentId = 0, int id = 0) => Enumerable.Range(1, count).Select(i => new TreeFoo()
+		{
+			Id = id + i,
+			ParentId = parentId,
+			Name = localizer["Foo.Name", $"{id + i:d4}"],
+			DateTime = System.DateTime.Now.AddDays(i - 1),
+			Address = localizer["Foo.Address", $"{Random.Shared.Next(1000, 2000)}"],
+			Count = Random.Shared.Next(1, 100),
+		}).ToList();
+	}
+}

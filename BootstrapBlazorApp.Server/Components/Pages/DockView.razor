@@ -1,0 +1,39 @@
+﻿@page "/dock"
+
+@using BootstrapBlazor.Components;
+
+<DockViewV2 Name="DockViewV2Complex" style="width:100%; height:100vh;">
+
+	<DockViewContent Type="DockViewContentType.Row">
+
+		<!-- Sol sütun -->
+		<DockViewContent Type="DockViewContentType.Column">
+			<DockViewComponent Key="tab1" Title="TablesDynamic">
+				<TablesDynamic />
+			</DockViewComponent>
+
+			<DockViewComponent Key="tab2" Title="TableDemo">
+				<TableDemo />
+			</DockViewComponent>
+		</DockViewContent>
+
+		<!-- Sağ sütun -->
+		<DockViewContent Type="DockViewContentType.Column">
+			<DockViewComponent Key="tab3" Title="Weather">
+				<Weather />
+			</DockViewComponent>
+
+			<DockViewComponent Key="tab4" Title="TablesTree">
+				<TablesTree />
+			</DockViewComponent>
+		</DockViewContent>
+
+	</DockViewContent>
+
+</DockViewV2>
+
+
+
+@code {
+
+}
